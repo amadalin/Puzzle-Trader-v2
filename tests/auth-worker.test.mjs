@@ -48,3 +48,40 @@ test('Unauthenticated profile cannot access user data',async()=>{
   const r=await auth.fetch(request('/api/me'),{DB:{}});
   assert.equal(r.status,401);
 });
+
+test('Signup accepts 8-char invitation and rejects 7-char invitation',async()=>{
+  const {createHash}=await import('node:crypto');
+  const invitation='A7mP2xQ9'; // Unit-test fixture only, not an active invitation.
+  const digest=createHash('sha256').update(invitation).digest('hex');
+  const inserted=[];
+  let count=0;
+  const db={prepare(sql){
+    return {bind(...params){
+      return {
+        async first(){
+          if(sql.includes('SELECT attempts FROM auth_rate_limits'))return {attempts:++count};
+          if(sql.includes('SELECT user_id FROM users'))return null;
+          throw new Error('Unexpected SELECT: '+sql.slice(0,50));
+        },
+        async run(){
+          if(sql.startsWith('INSERT INTO users('))inserted.push(params);
+          else if(!sql.startsWith('INSERT INTO auth_rate_limits('))throw new Error('Unexpected INSERT: '+sql.slice(0,50));
+          return {success:true};
+        }
+      };
+    }};
+  }};
+  const env={DB:db,AUTH_RATE_PEPPER:'unit-only-pepper',AUTH_SIGNUP_INVITE_HASH:digest};
+  const bad=await auth.fetch(request('/api/signup','POST',{username:'guest1',exchange:'KUCOIN_FUTURES',invite:invitation.slice(0,7)}),env);
+  assert.equal(bad.status,403);
+  assert.equal(inserted.length,0);
+  const good=await auth.fetch(request('/api/signup','POST',{username:'guest1',exchange:'KUCOIN_FUTURES',invite:invitation}),env);
+  assert.equal(good.status,201);
+  const data=await good.json();
+  assert.equal(data.username,'guest1');
+  assert.equal(data.exchange,'KUCOIN_FUTURES');
+  assert.ok(data.generatedPassword.length>=24);
+  assert.equal(inserted.length,1);
+  assert.ok(inserted[0][2].startsWith('pbkdf2-sha256$'));
+  assert.equal(inserted[0][3],'KUCOIN_FUTURES');
+});
