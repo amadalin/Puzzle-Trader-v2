@@ -174,3 +174,68 @@ PUNCT DE RELUARE
   fara modificari de infrastructura.
 - Dupa aceea: ETAPA 03, proiectare FEED-1 KuCoin + Binance READ_ONLY.
 - Nu porni etapa 03, CI, sau deploymenturi suplimentare fara comanda.
+
+=====================================================================
+SPECIFICATIE ETAPA 03.1 - RUTARE AUTOMATA FEED-1 PE EXCHANGE
+Data: 2026-11-20
+STATUS: DECIZIE FUNCTIONALA DOCUMENTATA; NU ESTE IMPLEMENTATA
+=====================================================================
+
+CERINTA CONFIRMATA
+- Exchange-ul este ales la SIGNUP, nu dintr-un selector in aplicatie dupa login.
+- Utilizatorul selecteaza KuCoin Futures sau Binance Futures si furnizeaza
+  credentialele corespunzatoare exchange-ului ales.
+- KuCoin: API key + API secret + API passphrase.
+- Binance: API key + API secret (fara passphrase KuCoin).
+- Dupa autentificare, sistemul citeste exchange_id din profilul utilizatorului
+  si conecteaza automat acel utilizator la FEED-1 corespunzator.
+- Nu cerem selectarea repetata KuCoin/Binance la fiecare pornire sau scanare.
+
+FLUXUL PREVAZUT
+  SIGNUP -> exchange_id + credentiale validate si pastrate securizat
+  LOGIN -> identitatea utilizatorului -> profil exchange_id
+  ROUTER FEED-1 -> KUCOIN_FUTURES sau BINANCE_FUTURES
+  FEED-1 -> date publice de piata pentru exchange-ul ales
+  A0-A4 -> M1 -> Supervisor -> Executor specific utilizatorului/exchange-ului
+
+ARHITECTURA PLANIFICATA
+- FEED-1 este un subsistem logic cu doua adaptoare: kucoin si binance.
+- Fluxurile publice de piata pot fi partajate intre utilizatorii aceluiasi
+  exchange pentru reducerea conexiunilor si ratelor API.
+- Un utilizator KuCoin NU primeste candlesticks sau semnale Binance.
+- Ordinele, API credentials, soldurile, pozitiile si riscul NU sunt comune;
+  acestea raman separate pe user_id si exchange_id.
+- API credentials private NU sunt transmise catre modulul de feed public.
+- Niciun API key sau secret nu este scris in README sau cod.
+- Daca nu exista utilizatori activi pe un exchange, adaptorul aferent poate
+  ramane inactiv; aceasta optimizare va fi evaluata ulterior.
+- Limita de maxim 5 utilizatori ramane cerinta proiectului.
+
+INTERFATA PLANIFICATA
+- Signup: alegerea exchange-ului + campurile de conectare specifice.
+- Login/dashboard: feed selectat automat din profil.
+- Nu exista selector manual de exchange in interfata principala.
+- Modificarea ulterioara a exchange-ului necesita flux explicit de
+  reconectare/revalidare (de proiectat, nu implementat).
+
+MODULE SI VARIABILE DE PROIECT (PROPUNERI, NU COD ACTIV)
+- user_id: identitatea utilizatorului autentificat.
+- exchange_id: KUCOIN_FUTURES | BINANCE_FUTURES, atribuit profilului.
+- resolveFeedForUser(user_id): identifica adaptorul din profilul autorizat.
+- feedAdapter(exchange_id): alege conexiunea WS/REST publica.
+- api_key, api_secret, api_passphrase: secrete stocate criptat in viitorul
+  modul accounts; passphrase numai pentru KuCoin; NU in FEED-1.
+- subscription_key: simbol + exchange_id + timeframe; doar date publice.
+- Aceste nume sunt contracte preliminare, nu implementari existente.
+
+SECURITATE SI STARE
+- Nu s-a activat niciun endpoint LIVE.
+- Conturile, baza de date, signup si rutarea FEED-1 NU exista in V2 inca.
+- Nu s-a pornit niciun deploy; modificarile exista numai in GitHub.
+- Render autoDeploy este dezactivat: documentul ajunge pe instanta
+  V2 la urmatorul deployment aprobat.
+
+PUNCT DE RELUARE
+- Etapa 03.1: implementare incremental a contractului FEED-1 si teste
+  unitare pentru rutarea implicita, fara a introduce chei reale.
+- Nu crea feed-urile sau loginul real fara etapa de implementare separata.
