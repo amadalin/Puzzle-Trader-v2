@@ -101,3 +101,16 @@ STAGE 03.2 PARTIAL IMPLEMENTATION - CLOUDFLARE WORKER
 - No credential imports or changes to existing auth-lab/LIVE Workers.
 - Stage 03.2b remains: secure signup invitation/rate secret setup,
   execute tests, controlled HTTP exposure, full end-to-end tests.
+
+STAGE 03.2B UPDATE - 2026-11-20
+- Auth rate limiting extended to both IP and global username scope;
+  missing user login computes a dummy PBKDF2 derivation.
+- Cloudflare secret AUTH_RATE_PEPPER installed without exposing value.
+- INVITE HASH still NOT configured; public signup remains disabled.
+- Render V2 build dep-dc09pj59el5s73fd7tl0 passed all 11 unit tests.
+- Deployed V2 Auth Worker version bb0e585e-a3a6-4b5a-87cc-19bfd43b8983.
+- Workers.dev subdomain disabled after a transient external check;
+  HTTP test returned environment-level 403 (not app-level confirmation).
+- Zero users, sessions, credentials in isolated V2 Auth D1.
+- Required next: owner's approved invite, secret provisioning, E2E tests,
+  then controlled production URL exposure. No trading permission granted.
