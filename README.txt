@@ -426,11 +426,10 @@ FUNCTII IMPLEMENTATE, DAR NEDISPONIBILE PUBLIC
 - Datele utilizatorilor raman separate de LAB si de botul LIVE.
 
 SECURITATE SI LIMITARI IMPORTANTE
-- AUTH_RATE_PEPPER si AUTH_SIGNUP_INVITE_HASH sunt legaturi secret
-  necesare si NU sunt inca configurate. O incercare de provisioning
-  automat a fost respinsa de instrument; nu s-a ocolit restrictia.
-- Fara cele doua secrete: SIGNUP si LOGIN returneaza 503 si raman
-  dezactivate; nu permite inregistrari publice necontrolate.
+- AUTH_RATE_PEPPER este acum configurat criptat in Cloudflare, fara valoare
+  expusa in cod/loguri. AUTH_SIGNUP_INVITE_HASH este inca neconfigurat.
+- Fara invitatia aprobata: SIGNUP returneaza 503; LOGIN are acum
+  anti-abuz activ, insa baza V2 contine 0 utilizatori.
 - Codul de invitatie trebuie sa fie suficient de lung si hashing SHA-256
   in secret-ul Cloudflare, fara salvarea codului in GitHub/D1.
 - Din LAB este refolosita familia PBKDF2; V2 foloseste PBKDF2-SHA256
@@ -450,11 +449,11 @@ VERIFICARI CONFIRMATE
 [x] D1: 0 useri, 0 sesiuni, 0 credentiale, schema versiune 1.
 [x] LAB vechi si Worker executor LIVE au acelasi version ID.
 [x] 6 teste de siguranta scrise in repository.
-[ ] Testele automate auth executate cu succes in Node/Render.
-[ ] Instalarea sigura a celor doua secrete (invitație si rate pepper).
+[x] Render: 11/11 teste Node trecute, inclusiv cele 6 din auth.
+[x] AUTH_RATE_PEPPER configurat; [ ] AUTH_SIGNUP_INVITE_HASH asteapta cod aprobat.
 [ ] Acces public controlat la pagina Signup/Login.
 [ ] Proba end-to-end Signup -> Login -> sesiune -> Logout.
-[ ] Audit final anti-abuz si hash parola inaintea accesului public.
+[x] Login limitat per IP si global per username; [ ] verificare reala E2E inainte de signup public.
 
 PUNCT DE RELUARE
 - Etapa 03.2b: configurarea secreta a invitațiilor si rate-limit,
@@ -462,3 +461,53 @@ PUNCT DE RELUARE
 - NU integra API-uri exchange ori FEED-1 in subetapa aceasta.
 - NU copia cod/secrete/stari din LIVE in V2.
 - Dupa finalizare: Etapa 04 conectarea API, Etapa 05 FEED-1.
+
+=====================================================================
+ETAPA 03.2b - VERIFICARI SI PROTECTII (2026-11-20)
+STATUS: TESTE AUTOMATE COMPLETE; SIGNUP PUBLIC INCA BLOCAT
+=====================================================================
+
+IMPLEMENTAT
+- Intarita functia rate(): doua limitari de Login, per IP si per cont.
+  Evita rotirea username-urilor pentru ocolirea protectiei IP si
+  evita incercari repetate distribuite impotriva unui cont.
+- Pentru utilizatorii necunoscuti, verificarea parolei are o operatie
+  PBKDF2 de referinta pentru a reduce diferentele evidente de timp.
+- Secretul AUTH_RATE_PEPPER a fost generat criptografic si salvat doar
+  ca secret_text in Worker Cloudflare (NU in GitHub sau D1).
+- Secretul AUTH_SIGNUP_INVITE_HASH NU este setat. Nicio invitatie sau
+  parola administrativă implicita nu este hardcodata; inscrierea
+  continua sa raspunda 503 (fail closed).
+- Nu s-au importat date API, parole si utilizatori din Workerul LAB.
+
+TESTARE REZULTATE
+- GitHub: src/auth-worker.mjs actualizat la commit
+  c44a31972376621ed0dce9ef49e16ae072d9cc7a.
+- Render V2 deploy dep-dc09pj59el5s73fd7tl0, commit
+  c44a31972376621ed0dce9ef49e16ae072d9cc7a, status LIVE.
+- npm test a rulat in Render, 11/11 teste PASS, 0 FAIL.
+- 6 teste auth: health READ_ONLY, pagina Signup/Login fara API keys,
+  signup fail-closed, login fara secret refuzat, CSRF origin/header,
+  acces la profil refuzat pentru vizitator.
+- 5 teste existente de protectie LIVE/READ_ONLY trecute.
+- Cloudflare V2 Worker versiune 3:
+  bb0e585e-a3a6-4b5a-87cc-19bfd43b8983, 100% deployed.
+- Bindinguri confirmate: DB exclusiv baza puzzle-trader-v2-auth,
+  AUTH_RATE_PEPPER secret_text. Fara binding LIVE.
+- Workers.dev subdomain a fost activat doar tranzitoriu pentru o
+  proba si dezactivat ulterior. Toolul de acces HTTP extern a
+  returnat 403 Forbidden la nivelul mediului de test, deci
+  proba HTTP end-to-end NU este confirmata.
+- Subdomeniu la final: enabled=false, previews_enabled=false.
+- D1: users=0, sessions=0, exchange_credentials=0, schema_version=1.
+
+LIMITARI SI PUNCT DE RELUARE
+- Pentru a activa inscrierea este necesar un cod de invitatie
+  de minimum 16 caractere aprobat de proprietar. Stocam EXCLUSIV
+  hashul SHA256 al invitatiei ca secret Cloudflare
+  AUTH_SIGNUP_INVITE_HASH (fara codul in sursa, D1 sau GitHub).
+- Dupa secret: test controlat real Signup -> Login -> /api/me ->
+  Logout, fara chei exchange sau ordine, cu cont de test curatat.
+- Abia dupa rezultatul pozitiv se deschide permanent subdomeniul
+  public pentru 5 conturi. Nu se atinge LIVE.
+- Etapa 04 ramane conectarea criptata a API; Etapa 05 FEED-1.
