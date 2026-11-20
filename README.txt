@@ -76,12 +76,13 @@ Jurnal: verificate la 2026-11-20. Nota: mediul local nu poate clona GitHub direc
 
 8. ETAPE URMATOARE (SUBETAPE MAX 10 MIN)
 02: Render Free V2 separat, deploy controlat si GET /health.
-03: plan FEED multi-exchange, apoi implementare incremental.
-04: audit si transfer secvential A0-A4, fara schimbarea regulilor.
-05: confirmare M1 si Quality.
-06: multiuser + baza de date, izolarea cheilor/securitate.
-07: Supervisor + executie, initial numai simulari.
-08: teste de sarcina, 5 utilizatori, cost total, decizie Starter.
+03: storage persistent si autentificare Signup/Login (maxim 5 useri).
+04: conectare exchange si credentiale criptate per utilizator.
+05: FEED-1 multi-exchange cu rutare automata din profil.
+06: audit si transfer secvential A0-A4, fara schimbarea regulilor.
+07: confirmare M1 si Quality.
+08: Supervisor + executie, initial numai teste fara ordine LIVE.
+09: teste de sarcina, 5 utilizatori, cost total, decizie Starter.
 Dupa fiecare subetapa: actualizam README.txt cu data, fisiere, functii,
 variabile, teste, commit, deployment si urmatorul pas.
 
@@ -172,19 +173,20 @@ LIMITARI / SIGURANTA
 PUNCT DE RELUARE
 - Confirmare directa /health in browser sau cu un client HTTP autorizat,
   fara modificari de infrastructura.
-- Dupa aceea: ETAPA 03, proiectare FEED-1 KuCoin + Binance READ_ONLY.
+- Dupa aceea: ETAPA 03, baza de date persistenta si Signup/Login; FEED-1 dupa conectarea contului.
 - Nu porni etapa 03, CI, sau deploymenturi suplimentare fara comanda.
 
 =====================================================================
-SPECIFICATIE ETAPA 03.1 - RUTARE AUTOMATA FEED-1 PE EXCHANGE
+SPECIFICATIE RUTARE AUTOMATA FEED-1 PE EXCHANGE (ETAPA 05)
 Data: 2026-11-20
 STATUS: DECIZIE FUNCTIONALA DOCUMENTATA; NU ESTE IMPLEMENTATA
 =====================================================================
 
 CERINTA CONFIRMATA
 - Exchange-ul este ales la SIGNUP, nu dintr-un selector in aplicatie dupa login.
-- Utilizatorul selecteaza KuCoin Futures sau Binance Futures si furnizeaza
-  credentialele corespunzatoare exchange-ului ales.
+- Utilizatorul selecteaza KuCoin Futures sau Binance Futures la SIGNUP.
+- Dupa inregistrarea sigura a contului (etapa 03), utilizatorul conecteaza
+  credentialele corespunzatoare in acelasi flux ghidat, ca pas separat (etapa 04).
 - KuCoin: API key + API secret + API passphrase.
 - Binance: API key + API secret (fara passphrase KuCoin).
 - Dupa autentificare, sistemul citeste exchange_id din profilul utilizatorului
@@ -192,7 +194,8 @@ CERINTA CONFIRMATA
 - Nu cerem selectarea repetata KuCoin/Binance la fiecare pornire sau scanare.
 
 FLUXUL PREVAZUT
-  SIGNUP -> exchange_id + credentiale validate si pastrate securizat
+  SIGNUP -> username + parola unica + exchange_id -> cont creat in DB persistenta
+  CONECTARE API -> chei specifice -> validare -> stocare criptata
   LOGIN -> identitatea utilizatorului -> profil exchange_id
   ROUTER FEED-1 -> KUCOIN_FUTURES sau BINANCE_FUTURES
   FEED-1 -> date publice de piata pentru exchange-ul ales
@@ -212,7 +215,8 @@ ARHITECTURA PLANIFICATA
 - Limita de maxim 5 utilizatori ramane cerinta proiectului.
 
 INTERFATA PLANIFICATA
-- Signup: alegerea exchange-ului + campurile de conectare specifice.
+- Signup: username, parola unica si alegerea exchange-ului.
+- Pas securizat imediat urmator: campurile API specifice exchange-ului.
 - Login/dashboard: feed selectat automat din profil.
 - Nu exista selector manual de exchange in interfata principala.
 - Modificarea ulterioara a exchange-ului necesita flux explicit de
@@ -236,6 +240,78 @@ SECURITATE SI STARE
   V2 la urmatorul deployment aprobat.
 
 PUNCT DE RELUARE
-- Etapa 03.1: implementare incremental a contractului FEED-1 si teste
-  unitare pentru rutarea implicita, fara a introduce chei reale.
-- Nu crea feed-urile sau loginul real fara etapa de implementare separata.
+- Etapa 03.1: alege o DB persistenta si pregateste schema/account security.
+- Etapa 03.2: Signup/Login si limitarea atomica la 5 conturi.
+- Etapa 04: conectare exchange in interfata securizata, teste read-only.
+- Etapa 05: FEED-1 si rutare implicita; fara chei reale in feed.
+- Nu crea feed-urile sau loginul real in afara subetapei aprobate.
+
+=====================================================================
+DECIZIE ARHITECTURALA CONFIRMATA - ORDINE AUTH INAINTE DE FEED
+Data: 2026-11-20
+STATUS: PLAN ACTUALIZAT; FARA MODIFICARI IN COD SAU RENDER
+=====================================================================
+
+RATIONAMENT
+- Mai intai identitatea utilizatorului si alegerea exchange-ului,
+  apoi conectarea criptata a credentialelor sale, apoi FEED-1 automat.
+- Cheile deja configurate in proiectul vechi LIVE NU se importa automat
+  in V2. Nu se citesc, copiaza sau reintroduc in cod/loguri/README.
+- Public market data poate fi citit fara credentiale private; FEED-1
+  trebuie sa depinda de exchange_id, NU de disponibilitatea API key.
+- Formularul poate avea un wizard unificat, dar cele 2 operatii
+  (Signup si Connect API) se executa separat si sigur in backend.
+
+ETAPA 03 - INCEPEM AICI (MAX 10 MIN PER SUBETAPA)
+03.1: Alegere DB persistenta conform bugetului si modelul de date.
+      Fara DB pe filesystemul efemer Render Free; fara cost nou fara acord.
+03.2: Signup cu max 5 utilizatori, parola unica generata, hash Argon2id,
+      exchange_id stocat definitiv in profil, fara chei API la acest pas.
+03.3: Login cu sesiuni sigure (HttpOnly, Secure, SameSite), throttling,
+      controale de acces, teste de izolare intre useri.
+
+ETAPA 04 - EXCHANGE CONNECTION
+04.1: Dupa Signup, intr-un pas securizat, userul introduce:
+      KUCOIN_FUTURES: API key, API secret, API passphrase;
+      BINANCE_FUTURES: API key, API secret.
+04.2: Verificari de format/permisii si conexiune READ-ONLY,
+      fara tranzactii, retrageri sau expunerea secretelor.
+04.3: Criptare autentificata pentru credentiale (ex. AES-256-GCM);
+      cheia de criptare in Render secret manager/env, separata de DB.
+      Cheile personale NU sunt stocate in parola, localStorage sau loguri.
+
+ETAPA 05 - FEED-1
+05.1: getAuthenticatedUser() -> exchange_id din profil -> adaptor public.
+05.2: WS/REST KuCoin sau Binance in functie de exchange_id.
+05.3: Streaming si cache pentru date PUBLICE reutilizabile per exchange,
+      date private si executie izolate per user_id + exchange_id.
+05.4: Cand API credentialele nu sunt completate, contul poate vedea
+      date publice daca este autorizat, dar orice functie privata
+      ramane blocata. Fara comutator manual exchange la fiecare pornire.
+
+FUNCTII PLANIFICATE (NU IMPLEMENTATE)
+- createUser(username, generatedPassword, exchange_id)
+- authenticateUser(username, password)
+- createSession(user_id)
+- saveEncryptedExchangeCredentials(user_id, exchange_id, encryptedSecret)
+- resolvePublicFeedForUser(user_id)
+
+VARIABILE PLANIFICATE (NU EXISTENTE IN RENDER)
+- user_id; username; password_hash; exchange_id.
+- CREDENTIAL_ENCRYPTION_KEY: secret configurat numai in backend, nu in DB.
+- DATABASE_URL: conexiunea la viitoarea baza de date persistenta.
+- api_key / api_secret / api_passphrase: date sensibile doar in formular
+  protejat si stocare criptata, niciodata in jurnalul README.
+- Numele exacte pot fi stabilite in Etapa 03.1.
+
+CRITERII DE ACCEPTARE
+[ ] DB persistenta aprobata si configurata.
+[ ] Signup si max 5 utilizatori verificat.
+[ ] Login si izolarea sesiunilor verificate.
+[ ] Credentiale API criptate si validate fara ordine.
+[ ] FEED-1 selectat automat numai din exchange_id autentificat.
+[ ] Nicio cheie preluata automat din proiectul LIVE.
+[ ] Botul LIVE, Render probe si Cloudflare raman neatinse.
+
+PUNCT DE RELUARE
+Etapa 03.1: DB persistenta si schema. Nu porni Etapa 04/05 inainte.
