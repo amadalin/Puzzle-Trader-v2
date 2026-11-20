@@ -315,3 +315,67 @@ CRITERII DE ACCEPTARE
 
 PUNCT DE RELUARE
 Etapa 03.1: DB persistenta si schema. Nu porni Etapa 04/05 inainte.
+
+=====================================================================
+ETAPA 03.1 - CLOUDFLARE D1 AUTH (EXECUTATA 2026-11-20)
+STATUS: COMPLETATA - SCHEMA REALA, AUTH API NEIMPLEMENTAT
+=====================================================================
+
+DECIZIE DE COST
+- Refolosim planul deja activ Cloudflare Workers Paid.
+- Cloudflare D1 are cote incluse; pentru maxim 5 utilizatori costul
+  incremental asteptat este 0 USD/luna la nivelul folosirii prevazute,
+  cu posibil cost suplimentar doar daca se depasesc limitele planului.
+- Nu am creat Neon sau PostgreSQL Render si nu am cumparat un plan nou.
+- Referinta: https://developers.cloudflare.com/d1/platform/pricing/
+
+RESURSA REALA CLOUD
+- Nume: puzzle-trader-v2-auth
+- UUID D1: d375b749-1e14-461e-941b-4dfa06165ccd
+- Cont Cloudflare: cel existent; jurisdiction=eu; read_replication=disabled.
+- Bazele anterioare puzzle-trader-paper si puzzle-trader-auth-lab
+  au ramas neatinse; NU le reutilizam pentru conturile V2.
+- Nu s-a creat niciun Worker nou si nu s-a modificat Render V2.
+
+FISIER SURSA / MIGRARE
+- migrations/0001_auth.sql (git, nonsecret).
+- Migrarea 1 aplicata cu succes (11/11 instructiuni SQL).
+- 5 tabele: users, user_sessions, exchange_credentials,
+  auth_rate_limits, schema_migrations.
+- 4 trigger-e: users_max_five, users_exchange_immutable,
+  credentials_exchange_match_insert, credentials_exchange_match_update.
+- 1 index pentru sesiuni.
+- D1 confirma 0 users, 0 sessions, 0 credentials, 0 auth_rate_limits.
+
+PROTECTII REALIZATE IN SCHEMA
+- Limita de 5 utilizatori aplicata atomic la nivel DB.
+- Exchange-ul ales la signup nu poate fi modificat prin UPDATE banal.
+- Campul password_hash nu permite parola nehashuita intentionat,
+  dar calculul/validarea reala Argon2id revine aplicatiei (urmeaza).
+- Sesiunile vor stoca doar hash-ul tokenului, cu expirare/revocare.
+- Cheile exchange au doar camp de pachet criptat, nonce si versiune;
+  nicio cheie reala nu a fost stocata si nicio cheie maestra nu se pune
+  in D1 sau GitHub.
+- Verificare de consistenta exchange_id intre user si credentiale.
+- Tabel pentru rate limiting; logica de blocare HTTP urmeaza.
+- Jurisdictie UE pentru stocarea bazei.
+
+TESTE
+[x] Cloudflare a creat baza separata si metadata indica EU.
+[x] 11/11 instructiuni schema aplicate fara eroare.
+[x] Tabele, triggere si index enumerate direct din sqlite_master.
+[x] Migrare versiune=1 confirmata in D1.
+[x] Toate tabelele personale sunt goale.
+[x] Test local SQLite: al saselea user este respins cu MAX_FIVE_USERS.
+[x] Test local SQLite: schimbarea exchange_id este respinsa.
+[ ] Teste end-to-end Signup/Login - inca nu exista endpointurile.
+[ ] Teste criptare credentiale si sesiuni - etapa viitoare.
+
+PUNCT DE RELUARE
+- Etapa 03.2: Worker de autentificare V2, separat, conectat
+  exclusiv la D1 puzzle-trader-v2-auth.
+- Signup: parola generata si hash Argon2id (niciodata in DB/loguri).
+- Login: sesiuni sigure HttpOnly/Secure/SameSite, protectie brute force.
+- Conectarea API reala abia in Etapa 04, din cont autentificat.
+- FEED-1 abia in Etapa 05.
+- Nicio activare LIVE/tranzactionare fara aprobarea distincta.
