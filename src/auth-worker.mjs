@@ -19,7 +19,7 @@ async function verifyPass(pass,hash){const x=String(hash||'').split('$');if(x.le
 async function body(req){if(Number(req.headers.get('Content-Length')||0)>MAX_BODY)throw Error('BODY_TOO_LARGE');const s=await req.text();if(s.length>MAX_BODY)throw Error('BODY_TOO_LARGE');return JSON.parse(s);}
 function cookie(token,age=43200){return '__Host-ptv2_session='+token+'; Path=/; Max-Age='+age+'; Secure; HttpOnly; SameSite=Strict';}
 function token(req){const m=(req.headers.get('Cookie')||'').match(/(?:^|;\s*)__Host-ptv2_session=([a-f0-9]{64})(?:;|$)/);return m?.[1]||null;}
-async function rate(req,env,action,max,seconds,username=''){if(!env.AUTH_RATE_PEPPER)return false;const raw=(req.headers.get('CF-Connecting-IP')||'missing')+'|'+action+'|'+username;const subject=await sha(env.AUTH_RATE_PEPPER+'|'+raw),now=Math.floor(Date.now()/1000),from=now-seconds;
+async function rate(req,env,action,max,seconds,username='',scope='ip'){if(!env.AUTH_RATE_PEPPER)return false;const ip=req.headers.get('CF-Connecting-IP')||'missing';const raw=action+'|'+(scope==='account'?'account:'+username:'ip:'+ip+'|'+username);const subject=await sha(env.AUTH_RATE_PEPPER+'|'+raw),now=Math.floor(Date.now()/1000),from=now-seconds;
  await env.DB.prepare("INSERT INTO auth_rate_limits(subject_hash,attempts,window_started_at,updated_at) VALUES(?,1,?,?) ON CONFLICT(subject_hash) DO UPDATE SET attempts=CASE WHEN window_started_at<? THEN 1 ELSE attempts+1 END,window_started_at=CASE WHEN window_started_at<? THEN excluded.window_started_at ELSE window_started_at END,updated_at=excluded.updated_at").bind(subject,now,now,from,from).run();
  const v=await env.DB.prepare('SELECT attempts FROM auth_rate_limits WHERE subject_hash=?').bind(subject).first();return Number(v?.attempts||0)<=max;}
 async function signup(req,env){if(!env.AUTH_SIGNUP_INVITE_HASH||!env.AUTH_RATE_PEPPER)return error('SIGNUP_NOT_CONFIGURED',503);if(!await rate(req,env,'signup',8,3600))return error('SIGNUP_RATE_LIMITED',429);
@@ -33,9 +33,10 @@ async function signup(req,env){if(!env.AUTH_SIGNUP_INVITE_HASH||!env.AUTH_RATE_P
  return json({ok:true,username:name,exchange,generatedPassword:pass,accountState:'PENDING_API'},201);}
 async function login(req,env){if(!env.AUTH_RATE_PEPPER)return error('LOGIN_NOT_CONFIGURED',503);const v=await body(req),name=norm(v.username),pass=String(v.password||'');
  if(!name||pass.length<10||pass.length>128)return error('INVALID_CREDENTIALS',401);
- if(!await rate(req,env,'login',12,900,name))return error('LOGIN_RATE_LIMITED',429);
+ if(!await rate(req,env,'login-ip',40,900)||!await rate(req,env,'login-account',8,900,name,'account'))return error('LOGIN_RATE_LIMITED',429);
  const u=await env.DB.prepare('SELECT user_id,username,exchange_id,account_state,password_hash FROM users WHERE username=?').bind(name).first();
- if(!u||u.account_state==='SUSPENDED'||!await verifyPass(pass,u.password_hash))return error('INVALID_CREDENTIALS',401);
+ if(!u){await pbkdf(pass,new Uint8Array(16),ITER);return error('INVALID_CREDENTIALS',401)}
+ if(u.account_state==='SUSPENDED'||!await verifyPass(pass,u.password_hash))return error('INVALID_CREDENTIALS',401);
  const raw=hex(rnd(32)),hashed=await sha(raw),now=Math.floor(Date.now()/1000);
  await env.DB.batch([env.DB.prepare('INSERT INTO user_sessions(session_hash,user_id,created_at,expires_at) VALUES(?,?,?,?)').bind(hashed,u.user_id,now,now+43200),env.DB.prepare('UPDATE users SET last_login_at=?,updated_at=? WHERE user_id=?').bind(now,now,u.user_id)]);
  return json({ok:true,username:u.username,exchange:u.exchange_id},200,cookie(raw));}
