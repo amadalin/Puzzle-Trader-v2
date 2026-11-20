@@ -18,7 +18,7 @@ test('V2 Auth health is READ_ONLY and forbids orders', async()=>{
   assert.equal(d.signupConfigured,false);
   assert.equal((await auth.fetch(request('/api/orders','POST',{}),{DB:{}})).status,404);
 });
-test('V2 interface has Signup/Login without API-key fields or PAPER balance',async()=>{
+test('V2 separates Signup from authenticated API connection and PAPER balance',async()=>{
   const r=await auth.fetch(request('/signup'),{});
   assert.equal(r.status,200);
   const body=await r.text();
@@ -26,9 +26,14 @@ test('V2 interface has Signup/Login without API-key fields or PAPER balance',asy
   assert.match(body,/KUCOIN_FUTURES/);
   assert.match(body,/BINANCE_FUTURES/);
   assert.match(body,/Cod de invitație/);
-  assert.ok(!body.includes('id="apiKey"'));
-  assert.ok(!body.includes('id="apiSecret"'));
-  assert.ok(!body.includes('id="apiPassphrase"'));
+  const signupHtml=body.split('<section id="signupSection" hidden>')[1]?.split('</section>')[0];
+  assert.ok(signupHtml);
+  assert.ok(!signupHtml.includes('id="apiKey"'));
+  assert.ok(!signupHtml.includes('id="apiSecret"'));
+  assert.ok(!signupHtml.includes('id="apiPassphrase"'));
+  assert.ok(body.includes('id="apiKey"'));
+  assert.ok(body.includes('id="apiSecret"'));
+  assert.ok(body.includes('id="apiPassphrase"'));
   assert.ok(!body.includes('paperBalanceMicro'));
 });
 test('Signup fails closed when no invite secret has been configured',async()=>{
@@ -84,4 +89,12 @@ test('Signup accepts 8-char invitation and rejects 7-char invitation',async()=>{
   assert.equal(inserted.length,1);
   assert.ok(inserted[0][2].startsWith('pbkdf2-sha256$'));
   assert.equal(inserted[0][3],'KUCOIN_FUTURES');
+});
+
+test('Exchange credential routes are not accessible without authenticated session',async()=>{
+ const d={};
+ let r=await auth.fetch(request('/api/exchange/status'),{DB:d});
+ assert.equal(r.status,401);
+ r=await auth.fetch(request('/api/exchange/connect','POST',{apiKey:'DUMMY_KEY_123456',apiSecret:'DUMMY_SECRET_123456'}),{DB:d});
+ assert.equal(r.status,401);
 });
