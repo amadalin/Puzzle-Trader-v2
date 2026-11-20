@@ -114,3 +114,9 @@ STAGE 03.2B UPDATE - 2026-11-20
 - Zero users, sessions, credentials in isolated V2 Auth D1.
 - Required next: owner's approved invite, secret provisioning, E2E tests,
   then controlled production URL exposure. No trading permission granted.
+
+STAGE 03.2 INVITATION LENGTH DECISION (2026-11-20)
+- Signup invitation length 8..128 characters (previous min 16 superseded).
+- Client minlength=8; server independently validates length and SHA-256.
+- Rate limiting, 5-account D1 cap and fail-closed invite-secret remain.
+- No production invitation created or stored in repo.
