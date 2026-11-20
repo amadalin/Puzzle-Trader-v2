@@ -1,0 +1,12 @@
+{
+  "name": "puzzle-trader-v2",
+  "version": "0.1.0",
+  "description": "Read-only Puzzle Trader V2 foundation. No order execution.",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test"
+  }
+}

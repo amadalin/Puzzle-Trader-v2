@@ -1,0 +1,32 @@
+PUZZLE TRADER V2 - MODULAR ARCHITECTURE (PLAN, NOT ACTIVE CODE)
+2026-11-20
+
+DEPLOYMENT BOUNDARY
+- Existing LIVE system: remains on Cloudflare + existing Render probe.
+- V2 environment: independent repo + future Render Free service, READ_ONLY only.
+- No credential reuse, no live exchange write during V2 development.
+
+PLANNED MODULE OWNERSHIP (create directories only when implementing)
+src/feed/           KuCoin / Binance public market feeds; WS/reconnect/cooldown.
+src/engine/         A0..A4 deterministic stages; immutable setup IDs.
+src/confirmation/   M1 closed candles, volume, pattern and Quality evidence.
+src/accounts/       Max 5 users, identity, access control, secrets isolation.
+src/supervisor/     Position state, TP1/TP2/TP3, recovery per user/account.
+src/execution/      Exchange-specific executor; disabled until separately approved.
+src/web/            Multiuser UI; no exchange credentials exposed.
+src/config/         Fail-closed settings and safety policy.
+tests/              Deterministic unit tests, later integration and load tests.
+
+DATA AND SECURITY CONTRACT (to be implemented later)
+- Shared read-only market observations; user and exchange segregation for orders.
+- Independent API credentials, position inventory, risk and order identifiers.
+- Idempotent order handoff; signed exchange account reconciliation first.
+- No automatic live activation, dual LIVE systems or background CI builds.
+- Secrets only via secure secret storage; never in source or README.
+
+CURRENT IMPLEMENTATION
+- src/config/safety.mjs guards READ_ONLY.
+- src/server.mjs serves GET /health only.
+- No database, private exchange API, trade routes or scheduler.
+
+NEXT: Stage 02 - isolated Render Free V2 deployment, if approved.
