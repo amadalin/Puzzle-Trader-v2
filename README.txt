@@ -350,8 +350,9 @@ FISIER SURSA / MIGRARE
 PROTECTII REALIZATE IN SCHEMA
 - Limita de 5 utilizatori aplicata atomic la nivel DB.
 - Exchange-ul ales la signup nu poate fi modificat prin UPDATE banal.
-- Campul password_hash nu permite parola nehashuita intentionat,
-  dar calculul/validarea reala Argon2id revine aplicatiei (urmeaza).
+- Campul password_hash impune doar o lungime minima in schema.
+  Nu poate dovedi ca parola a fost hashuita: calculul si validarea
+  Argon2id trebuie impuse strict in backend, in Etapa 03.2.
 - Sesiunile vor stoca doar hash-ul tokenului, cu expirare/revocare.
 - Cheile exchange au doar camp de pachet criptat, nonce si versiune;
   nicio cheie reala nu a fost stocata si nicio cheie maestra nu se pune
