@@ -503,7 +503,7 @@ TESTARE REZULTATE
 
 LIMITARI SI PUNCT DE RELUARE
 - Pentru a activa inscrierea este necesar un cod de invitatie
-  de minimum 16 caractere aprobat de proprietar. Stocam EXCLUSIV
+  de minimum 8 caractere aprobat de proprietar. Stocam EXCLUSIV
   hashul SHA256 al invitatiei ca secret Cloudflare
   AUTH_SIGNUP_INVITE_HASH (fara codul in sursa, D1 sau GitHub).
 - Dupa secret: test controlat real Signup -> Login -> /api/me ->
@@ -511,3 +511,19 @@ LIMITARI SI PUNCT DE RELUARE
 - Abia dupa rezultatul pozitiv se deschide permanent subdomeniul
   public pentru 5 conturi. Nu se atinge LIVE.
 - Etapa 04 ramane conectarea criptata a API; Etapa 05 FEED-1.
+
+=====================================================================
+ETAPA 03.2 - COD INVITATIE MINIMUM 8 CARACTERE (2026-11-20)
+=====================================================================
+- Cerinta utilizatorului: codul de invitatie nu mai cere 16 caractere;
+  lungimea minima este acum 8, maxima 128.
+- src/auth-worker.mjs: validare server pentru 8..128 si atribut
+  minlength=8, maxlength=128 in formularul Signup.
+- tests/auth-worker.test.mjs: test pentru invitatie de 8 caractere
+  acceptata si de 7 caractere respinsa, folosind hash doar in fixture.
+- Ramane obligatorie egalitatea cu SHA256 hash din secret-ul Cloudflare,
+  plus limitarea frecventei cererilor de signup si limita 5 conturi in D1.
+- Recomandam cod aleator, nu cuvant comun. Codul efectiv de invitatie
+  nu a fost definit de catre utilizator si nu este inclus in GitHub.
+- AUTH_SIGNUP_INVITE_HASH ramane de configurat in Cloudflare. Pana atunci
+  Signup returneaza 503, nu este disponibil public.
