@@ -29,12 +29,13 @@ CURRENT IMPLEMENTATION
 - src/server.mjs serves GET /health only.
 - No database, private exchange API, trade routes or scheduler.
 
-NEXT: Stage 03.1 - feed routing contract and read-only tests; Render Free created in Stage 02.
+NEXT: Stage 03.1 - persistent database and account security design; Render Free created in Stage 02.
 
 SIGNUP-BOUND EXCHANGE ROUTING (DECISION - NOT IMPLEMENTED)
 - The user selects KuCoin Futures or Binance Futures during SIGNUP only.
-- User enters exchange-specific credentials at signup; Binance does not use
-  a KuCoin-style passphrase.
+- Signup creates an authenticated account and stores the exchange choice.
+- Immediately afterward, a separate secure Connect API step collects
+  exchange-specific credentials; Binance has no KuCoin-style passphrase.
 - On login, exchange_id is read securely from the user's saved profile.
 - FEED-1 router automatically selects its KuCoin or Binance public feed.
 - Dashboard has no manual or per-scan exchange selector.
@@ -43,3 +44,28 @@ SIGNUP-BOUND EXCHANGE ROUTING (DECISION - NOT IMPLEMENTED)
   execution are always scoped by user_id + exchange_id.
 - Public FEED-1 adapters MUST NOT read private API keys.
 - All functionality described here is planned, not deployed.
+
+REVISED IMPLEMENTATION ORDER - CONFIRMED 2026-11-20
+03: PERSISTENT DB, AUTHENTICATION, SIGNUP, LOGIN, 5-USER LIMIT
+    - Account first: user_id, username, generated password, password hash,
+      exchange_id (KUCOIN_FUTURES or BINANCE_FUTURES), login session.
+    - No secret storage on Render Free ephemeral disk.
+    - Password hashes only (Argon2id); secure cookies and login throttling.
+    - DB provider/cost must be approved before provisioning.
+
+04: SECURE CONNECT EXCHANGE API
+    - Authenticated form for API credentials scoped to user_id + exchange_id.
+    - KuCoin: key, secret, passphrase; Binance: key, secret.
+    - Encrypt credentials at rest; keep master encryption key outside DB.
+    - Read-only verification first. No withdrawals, no live orders, no
+      automatic import of credentials from the existing LIVE app.
+
+05: AUTOMATIC PUBLIC FEED-1
+    - Read exchange_id from authenticated profile, not UI choice.
+    - Select market-data KuCoin or Binance adapter automatically.
+    - No API keys needed in public market-data adapters.
+    - Shared public data by exchange; private execution per user+exchange.
+    - Missing private API credentials must block private operations.
+
+06+: TRANSFER ENGINE, M1, SUPERVISOR, EXECUTOR, LOAD TESTS incrementally.
+- This is documented architecture only. No running code or deployment changed.
