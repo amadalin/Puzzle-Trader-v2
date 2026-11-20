@@ -87,3 +87,17 @@ IMPLEMENTED STAGE 03.1 - CLOUDFLARE D1
 - No users, credentials or sessions have been inserted.
 - Free quota already included with existing Workers Paid subscription
   subject to normal D1 monthly usage limits.
+
+STAGE 03.2 PARTIAL IMPLEMENTATION - CLOUDFLARE WORKER
+- Existing auth-lab audited and reused as design/security reference.
+- New script src/auth-worker.mjs deployed in isolated worker
+  puzzle-trader-v2-auth, version 0fb5844e-2f5d-4986-8086-805a16e07267.
+- Only binding DB -> V2 D1 d375b749-1e14-461e-941b-4dfa06165ccd.
+- Worker subdomain DISABLED; signup/login fail closed until auth secrets.
+- Signup username + exchange_id + invitation; no API secrets yet.
+- Password generated, PBKDF2-SHA256 600k iterations (Argon2id planned
+  but not implemented); SHA256 session token hash; Secure/HttpOnly cookie.
+- tests/auth-worker.test.mjs added (6 tests, execution pending).
+- No credential imports or changes to existing auth-lab/LIVE Workers.
+- Stage 03.2b remains: secure signup invitation/rate secret setup,
+  execute tests, controlled HTTP exposure, full end-to-end tests.
