@@ -29,4 +29,17 @@ CURRENT IMPLEMENTATION
 - src/server.mjs serves GET /health only.
 - No database, private exchange API, trade routes or scheduler.
 
-NEXT: Stage 02 - isolated Render Free V2 deployment, if approved.
+NEXT: Stage 03.1 - feed routing contract and read-only tests; Render Free created in Stage 02.
+
+SIGNUP-BOUND EXCHANGE ROUTING (DECISION - NOT IMPLEMENTED)
+- The user selects KuCoin Futures or Binance Futures during SIGNUP only.
+- User enters exchange-specific credentials at signup; Binance does not use
+  a KuCoin-style passphrase.
+- On login, exchange_id is read securely from the user's saved profile.
+- FEED-1 router automatically selects its KuCoin or Binance public feed.
+- Dashboard has no manual or per-scan exchange selector.
+- Public market feeds can be shared for users on the SAME exchange.
+- User credentials, account state, risk, trading permissions, positions and
+  execution are always scoped by user_id + exchange_id.
+- Public FEED-1 adapters MUST NOT read private API keys.
+- All functionality described here is planned, not deployed.
