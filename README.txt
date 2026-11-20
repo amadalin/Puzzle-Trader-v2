@@ -380,3 +380,85 @@ PUNCT DE RELUARE
 - Conectarea API reala abia in Etapa 04, din cont autentificat.
 - FEED-1 abia in Etapa 05.
 - Nicio activare LIVE/tranzactionare fara aprobarea distincta.
+
+=====================================================================
+ETAPA 03.2 - AUTH WORKER V2 (PRIMA SUBETAPA) - 2026-11-20
+STATUS: COD DEPLOYAT, SIGURANTA FAIL-CLOSED, SIGNUP NEACTIVAT
+=====================================================================
+
+REUTILIZARE VERIFICATA
+- Sursa arhitecturala: puzzle-trader-auth-lab (Worker Cloudflare existent
+  din 2026-11-11); lab_users / lab_sessions / lab_paper_accounts
+  identificate in D1-ul vechi.
+- Refolosite conceptele si stilul: UI dark, parola generata random,
+  PBKDF2 WebCrypto, token de sesiune hashuit, cookie HttpOnly+Secure+
+  SameSite=Strict, CSP nonce, origine verificata, rate limiting.
+- Originalul LAB este intact si continua pe baza puzzle-trader-auth-lab.
+- Codul original era strict TEST_/PAPER cu 30 utilizatori, NU se adopta
+  baza de date sau credentialele originale in V2.
+
+FISIERE PUBLICE NOI GITHUB
+- src/auth-worker.mjs : Worker V2 (cod generic, fara secrete).
+- tests/auth-worker.test.mjs : 6 teste de siguranta / rute, introduse
+  in repository; executia acestora in Render/Node NU este inca verificata.
+- Proiectul GitHub este PUBLIC. Nu exista chei API in sursa.
+
+RESURSA NOUA CLOUDFLARE
+- Worker nume: puzzle-trader-v2-auth
+- Versiune initiala: 0fb5844e-2f5d-4986-8086-805a16e07267
+- Deploy: 100%; handler fetch compilat.
+- Unicul binding: DB (D1) -> d375b749-1e14-461e-941b-4dfa06165ccd
+- Subdomain workers.dev: DISABLED; preview: DISABLED.
+- Nu exista service bindings catre LIVE sau catre Render vechi.
+- Nu s-a facut niciun deployment Render V2 pentru aceasta subetapa.
+
+FUNCTII IMPLEMENTATE, DAR NEDISPONIBILE PUBLIC
+- GET / : pagina Signup/Login si ecran cont in tema LAB adaptata.
+- GET /health : READ_ONLY, orderExecution=DISABLED.
+- GET /api/me : profil din sesiunea curenta.
+- POST /api/signup : username + exchange_id + cod invitatie; password
+  generat si returnat doar la creare; fara chei API.
+- POST /api/login : verifica password_hash, salveaza hash token sesiune
+  cu expirare 12 ore; doar autentificare, fara operatii exchange.
+- POST /api/logout : sterge sesiunea.
+- API pentru executarea ordinelor INEXISTENT; alte rute raspund 404.
+- CREATE USER limitat atomic la 5 de triggerul D1 din 03.1.
+- Datele utilizatorilor raman separate de LAB si de botul LIVE.
+
+SECURITATE SI LIMITARI IMPORTANTE
+- AUTH_RATE_PEPPER si AUTH_SIGNUP_INVITE_HASH sunt legaturi secret
+  necesare si NU sunt inca configurate. O incercare de provisioning
+  automat a fost respinsa de instrument; nu s-a ocolit restrictia.
+- Fara cele doua secrete: SIGNUP si LOGIN returneaza 503 si raman
+  dezactivate; nu permite inregistrari publice necontrolate.
+- Codul de invitatie trebuie sa fie suficient de lung si hashing SHA-256
+  in secret-ul Cloudflare, fara salvarea codului in GitHub/D1.
+- Din LAB este refolosita familia PBKDF2; V2 foloseste PBKDF2-SHA256
+  cu 600000 iteratii/sare aleatoare. Proiectul planificase Argon2id;
+  acesta NU este implementat si schimbarea necesita evaluare tehnica.
+- Fara API key / secret / passphrase la Signup; Etapa 04 va conecta
+  credentialele numai din cont autenticat si criptat.
+- Login nu este validat cap-coada cu utilizator real, deoarece
+  nu exista invitatii active si baza este goala.
+- Linkul public al Workerului NU este activat si accesul din browser
+  nu este verificat.
+
+VERIFICARI CONFIRMATE
+[x] Worker creat si cod acceptat de compilatorul Cloudflare.
+[x] 100% versiunea V2 auth deployata.
+[x] DB binding exclusiv spre D1 V2, niciun binding LIVE.
+[x] D1: 0 useri, 0 sesiuni, 0 credentiale, schema versiune 1.
+[x] LAB vechi si Worker executor LIVE au acelasi version ID.
+[x] 6 teste de siguranta scrise in repository.
+[ ] Testele automate auth executate cu succes in Node/Render.
+[ ] Instalarea sigura a celor doua secrete (invitație si rate pepper).
+[ ] Acces public controlat la pagina Signup/Login.
+[ ] Proba end-to-end Signup -> Login -> sesiune -> Logout.
+[ ] Audit final anti-abuz si hash parola inaintea accesului public.
+
+PUNCT DE RELUARE
+- Etapa 03.2b: configurarea secreta a invitațiilor si rate-limit,
+  validarea testelor, apoi expunerea controlata a Workerului.
+- NU integra API-uri exchange ori FEED-1 in subetapa aceasta.
+- NU copia cod/secrete/stari din LIVE in V2.
+- Dupa finalizare: Etapa 04 conectarea API, Etapa 05 FEED-1.
