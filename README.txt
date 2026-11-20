@@ -527,3 +527,63 @@ ETAPA 03.2 - COD INVITATIE MINIMUM 8 CARACTERE (2026-11-20)
   nu a fost definit de catre utilizator si nu este inclus in GitHub.
 - AUTH_SIGNUP_INVITE_HASH ramane de configurat in Cloudflare. Pana atunci
   Signup returneaza 503, nu este disponibil public.
+
+
+=====================================================================
+ETAPA 04.1 - CONECTARE API CRIPTATA, FARA VERIFICARE EXCHANGE
+Data: 2026-11-20
+STATUS: COD CLOUD DEPLOYAT SI UNIT TESTAT; UTILIZATORI NEACTIVATI
+=====================================================================
+
+DECIZIE
+- Etapa 03.2 poate ramane cu invitatia publica blocata in timpul
+  dezvoltarii Etapei 04. Nu declaram finalizare E2E Signup/Login.
+- Refolosim D1 EU puzzle-trader-v2-auth, fara alta baza de date.
+- API credentials sunt stocate per utilizator autentificat, fara
+  reintroducerea automata a cheilor existente in botul LIVE.
+
+FISIERE
+- src/exchange-vault.mjs: modul AES-256-GCM cu associated data
+  user_id + exchange_id, IV aleator nou de 12 bytes per salvare.
+- src/auth-worker.mjs: UI pentru chei, endpointuri securizate, login
+  necesar, protectie Origin + X-Puzzle-V2, throttling per IP/cont.
+- tests/exchange-vault.test.mjs: 5 teste pentru criptare, decriptare
+  izolata, upsert, invalidare verificare, key missing si replay.
+- tests/auth-worker.test.mjs: test API acces doar cu sesiune.
+- Nu s-au introdus chei reale sau secrete in GitHub.
+
+ENDPOINTURI
+- GET /api/exchange/status: necesita sesiune; intoarce doar
+  daca exista chei salvate si daca au fost verificate, fara secret.
+- POST /api/exchange/connect: necesita sesiune; format KuCoin
+  Key+Secret+Passphrase, Binance Key+Secret (fara passphrase).
+  Scrie doar datele criptate in D1, marcheaza neverificat.
+- Secretul V2_CREDENTIAL_ENCRYPTION_KEY este nou, 32 bytes
+  aleatori, stocat doar ca secret_text Cloudflare Worker.
+- Stocarea credențialelor este separata user_id + exchange_id.
+- Decriptarea este helper doar server-side, nu este expusa HTTP.
+- Nu exista cereri API exchange de verificare, ordine sau retrageri.
+
+TESTE CONFIRMATE
+[x] Render deploy dep-dc0bgpcipgvc738jbvsg, status LIVE (de server).
+[x] npm test: 18/18 PASS, 0 FAIL (inclusiv 5 teste vault).
+[x] Cloudflare V2 Worker versiune 6:
+    0a4a829e-26fc-47b9-8d91-b334a3008d19, 100% deployed.
+[x] D1 binding doar puzzle-trader-v2-auth, rate pepper si key AES.
+[x] Subdomeniu public: enabled=false.
+[x] D1: 0 utilizatori, 0 sesiuni, 0 credentiale.
+[ ] Test real end-to-end browser Signup/Login, pentru ca invitatia
+    este inca neconfigurata; Workerul ramane nepublic.
+[ ] Test de scriere/citire D1 cu chei fictive prin HTTP real.
+[ ] Verificare READ_ONLY cu API exchange reale, pas distinct 04.2.
+[ ] Validare permisiuni, eroare de auth / allowlist si rate limits.
+[ ] KYC/Regional LIVE constraints se trateaza numai ulterior.
+
+PUNCT DE RELUARE
+- Etapa 04.2: valideaza credentialele prin endpointuri read-only
+  KuCoin Futures / Binance Futures, fara ordine reale.
+- Finalizeaza separat invitatia 03.2 si testul E2E browser inainte
+  de a expune formularele sau permite stocarea datelor reale.
+- Etapa 05: FEED-1 automat din exchange_id profil, date publice
+  fara folosirea API key.
+- Botul LIVE pe Cloudflare + Render probe a ramas neatins.
