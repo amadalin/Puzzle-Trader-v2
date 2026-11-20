@@ -1,7 +1,7 @@
 PUZZLE TRADER V2 - JURNAL TEHNIC SI PLAN DE LUCRU
 Data: 2026-11-20 (Europe/Bucharest)
 Repo: amadalin/Puzzle-Trader-v2
-ETAPA 01 - FUNDATIE / STATUS: IMPLEMENTAT, NEPUBLICAT PE RENDER
+ETAPA 01 - FUNDATIE / STATUS: FINALIZAT PE GITHUB; NEPUBLICAT PE RENDER
 Regula: etape mici, fiecare cel mult 10 minute de lucru; oprim dupa verificarea fiecarei etape.
 
 1. OBIECTIV
@@ -67,12 +67,12 @@ src/server.mjs:
   Recomandare: setare PRIVATE in GitHub inainte de a transfera logica reala.
 
 7. CRITERII DE ACCEPTARE ETAPA 01
-[ ] Toate fisierele prezente in repo si accesibile din main.
-[ ] node --test trece.
-[ ] Pornirea cu LIVE_TRADING_ENABLED=true este refuzata.
-[ ] /health raspunde local, fara conexiuni externe.
-[ ] Nu a aparut deployment Render si nu a fost afectat LIVE.
-Jurnal: criteriile bifate se actualizeaza dupa verificare efectiva.
+[x] Toate fisierele prezente in repo si accesibile din main.
+[x] node --test trece (5/5 teste, copie locala a surselor publicate).
+[x] Pornirea cu LIVE_TRADING_ENABLED=true este refuzata (exit code 1).
+[x] /health raspunde local HTTP 200, fara conexiuni externe; POST /api/orders -> 404.
+[x] Nu s-a initiat deployment Render si nu s-au modificat resursele LIVE.
+Jurnal: verificate la 2026-11-20. Nota: mediul local nu poate clona GitHub direct; testele au fost executate pe o copie locala a codului din commit, iar prezenta fisierelor a fost verificata separat prin API GitHub.
 
 8. ETAPE URMATOARE (SUBETAPE MAX 10 MIN)
 02: Render Free V2 separat, deploy controlat si GET /health.
@@ -86,4 +86,4 @@ Dupa fiecare subetapa: actualizam README.txt cu data, fisiere, functii,
 variabile, teste, commit, deployment si urmatorul pas.
 
 9. PUNCT DE RELUARE
-ETAPA 02 este urmatoarea. Nu o incepe automat.
+ETAPA 02 este urmatoarea. Nu o incepe automat.\nCommitul initial al etapei 01: 9080fe1872d4b8455a461a68226914231b8922ba.
