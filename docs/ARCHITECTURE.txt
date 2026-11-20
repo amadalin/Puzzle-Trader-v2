@@ -120,3 +120,22 @@ STAGE 03.2 INVITATION LENGTH DECISION (2026-11-20)
 - Client minlength=8; server independently validates length and SHA-256.
 - Rate limiting, 5-account D1 cap and fail-closed invite-secret remain.
 - No production invitation created or stored in repo.
+
+
+IMPLEMENTED STAGE 04.1 - ENCRYPTED EXCHANGE VAULT
+- src/exchange-vault.mjs isolates AES-256-GCM credential encryption.
+- Cloudflare secret V2_CREDENTIAL_ENCRYPTION_KEY generated in Worker
+  secrets, not disclosed to source, logs or D1.
+- D1 table exchange_credentials already present; no migration added.
+- POST /api/exchange/connect requires authenticated session,
+  same-origin CSRF checks, IP + per-account throttling.
+- GET /api/exchange/status exposes only saved/verified status.
+- KuCoin Futures key+secret+passphrase; Binance Futures key+secret.
+- On each save, new 12-byte IV; associatedData binds to user+exchange.
+- Re-saving resets last_verified_at to NULL until new verification.
+- Absolutely no exchange API calls or live trading in this stage.
+- Automated Render Node tests 18/18 pass, 0 fail.
+- Cloudflare Auth deployed version 0a4a829e-26fc-47b9-8d91-b334a3008d19.
+- Worker public URL disabled; account DB empty and signup invite not set.
+- Stage 04.2: read-only exchange credential verification.
+- Stage 03.2 remains pending approved invitation and browser E2E.
