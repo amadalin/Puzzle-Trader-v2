@@ -86,4 +86,91 @@ Dupa fiecare subetapa: actualizam README.txt cu data, fisiere, functii,
 variabile, teste, commit, deployment si urmatorul pas.
 
 9. PUNCT DE RELUARE
-ETAPA 02 este urmatoarea. Nu o incepe automat.\nCommitul initial al etapei 01: 9080fe1872d4b8455a461a68226914231b8922ba.
+ETAPA 02 a fost executata pe Render Free. Ultima verificare HTTP publica ramane in asteptare.\nCommitul initial al etapei 01: 9080fe1872d4b8455a461a68226914231b8922ba.
+
+
+=====================================================================
+ETAPA 02 - SERVICIU RENDER FREE SEPARAT - 2026-11-20
+STATUS: SERVICIU CREAT, BUILD SI START VALIDATE; HTTP /health EXTERN NEVERIFICAT
+=====================================================================
+
+OBIECTIV
+- Creat serviciu de dezvoltare separat pe Render Free, fara chei API
+  si fara activarea executiei LIVE.
+- Conectat numai repo-ul nou Puzzle-Trader-v2 / main.
+- Pornirea Node.js, protectiile si publicarea controlata sa fie verificabile.
+
+RESURSE CREATE
+- Workspace: My Workspace (existent, neschimbat).
+- Service: puzzle-trader-v2-dev
+- Service ID: srv-dc06lp5g1s2s73ea61g0
+- Dashboard: https://dashboard.render.com/web/srv-dc06lp5g1s2s73ea61g0
+- URL public: https://puzzle-trader-v2-dev.onrender.com
+- Endpoint definit in cod: GET /health
+- Plan: Free (fara abonament nou pentru acest serviciu).
+- Region: Frankfurt; runtime: Node; branch: main.
+- AutoDeploy: no (fara deploy automat la fiecare commit).
+- Build command: npm test
+- Start command: npm start
+- Versiune Node aleasa automat de Render: 26.13.1.
+- Nu s-au creat baze de date, disc persistent, alte servicii sau joburi.
+- Nu s-a efectuat upgrade la plan platit.
+
+DEPLOYMENT
+- Deploy ID: dep-dc06lpdg1s2s73ea629g
+- Commit sursa: 90b757b89cee475d07c965e1284b0ced997dcd81
+- Rezultat Render: LIVE (2026-11-20 15:45:01 UTC / 17:45:01 Romania).
+- Build log: "Build successful"; node --test: 5 trecute, 0 esuate.
+- Log startup: "Puzzle Trader V2 started: READ_ONLY; execution DISABLED".
+- Log Render: "Your service is live".
+- IMPORTANT: GET extern direct /health nu a putut fi verificat din
+  mediul asistentului (eroare de rezolvare/acces retea).
+  Nu se declara HTTP 200 extern confirmat. Deschiderea linkului /health
+  dintr-un browser este necesara pentru criteriul de acceptare complet.
+
+FUNCTII SI RUTE
+- Nu s-au introdus functii noi in Etapa 02.
+- assertReadOnlyConfiguration(): apelata la startup in src/server.mjs,
+  refuza configuratiile LIVE.
+- denyExchangeWrite(): gard de cod neconectat inca la vreun executor.
+- GET /health: codul defineste raspuns JSON cu
+  application=puzzle-trader-v2; mode=READ_ONLY; orderExecution=DISABLED.
+- Toate celelalte rute: 404. Nu exista endpoint pentru ordine.
+- Nu exista apel catre API private KuCoin/Binance din proiectul V2.
+
+VARIABILE RENDER (numai nume si setari non-secrete)
+- TRADING_MODE=READ_ONLY
+- ORDER_EXECUTION_MODE=DISABLED
+- LIVE_TRADING_ENABLED=false
+- LIVE_EXECUTION_ENABLED=false
+- EXECUTION_ENABLED=false
+- ORDER_WRITES_ENABLED=false
+- EXCHANGE_WRITE_ENABLED=false
+- PORT: acordat automat de Render; codul foloseste implicit 10000.
+- Fara variabile API_KEY, API_SECRET, PASSPHRASE sau alte credentiale.
+
+TESTE SI DOVEZI
+[x] Serviciu nou exista separat, plan Free, autoDeploy no.
+[x] Repo V2 corect, commitul asteptat.
+[x] Build npm test 5/5, fara esecuri.
+[x] Server Node pornit cu READ_ONLY, conform jurnalului.
+[x] Render confirma status deploy LIVE si serviciu not_suspended.
+[x] smc-futures-feed-probe exista in continuare, Free, nealterat.
+[ ] GET /health pe URL-ul public cu HTTP 200 verificat extern.
+[ ] Test 24/7 de continuitate (nu se poate certifica pe Free).
+[x] Nicio activare de ordine, nicio baza de date, niciun cost platit nou.
+
+LIMITARI / SIGURANTA
+- Free poate intra in repaus, RAM/CPU sunt limitate, fara disc persistent.
+- Repozitoriul GitHub este PUBLIC: NU adaugam strategie privata sau chei.
+- Nimic din Cloudflare LIVE / Render existent nu a fost migrat.
+- Modificarile README dupa deployment NU apar automat in instanta:
+  autoDeploy este dezactivat; viitorul deploy le va prelua.
+- Evitam accesul la executie LIVE pana la validare si autorizare separata.
+- Nu adaugam un al doilea executor LIVE.
+
+PUNCT DE RELUARE
+- Confirmare directa /health in browser sau cu un client HTTP autorizat,
+  fara modificari de infrastructura.
+- Dupa aceea: ETAPA 03, proiectare FEED-1 KuCoin + Binance READ_ONLY.
+- Nu porni etapa 03, CI, sau deploymenturi suplimentare fara comanda.
