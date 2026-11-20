@@ -27,9 +27,10 @@ DATA AND SECURITY CONTRACT (to be implemented later)
 CURRENT IMPLEMENTATION
 - src/config/safety.mjs guards READ_ONLY.
 - src/server.mjs serves GET /health only.
-- No database, private exchange API, trade routes or scheduler.
+- Dedicated Cloudflare D1 V2 Auth database created (migration 0001).
+- No signup/login HTTP API, private exchange API, trade routes or scheduler.
 
-NEXT: Stage 03.1 - persistent database and account security design; Render Free created in Stage 02.
+NEXT: Stage 03.2 - isolated Auth Worker and Signup/Login; D1 schema 0001 already live.
 
 SIGNUP-BOUND EXCHANGE ROUTING (DECISION - NOT IMPLEMENTED)
 - The user selects KuCoin Futures or Binance Futures during SIGNUP only.
@@ -69,3 +70,20 @@ REVISED IMPLEMENTATION ORDER - CONFIRMED 2026-11-20
 
 06+: TRANSFER ENGINE, M1, SUPERVISOR, EXECUTOR, LOAD TESTS incrementally.
 - This is documented architecture only. No running code or deployment changed.
+
+IMPLEMENTED STAGE 03.1 - CLOUDFLARE D1
+- D1 name: puzzle-trader-v2-auth; ID d375b749-1e14-461e-941b-4dfa06165ccd
+- Jurisdiction: eu; read replication disabled.
+- Source: migrations/0001_auth.sql; migration 1 applied.
+- Tables: users, user_sessions, exchange_credentials, auth_rate_limits,
+  schema_migrations.
+- Limits: max 5 accounts enforced by SQLite trigger.
+- Signup exchange assignment immutable without explicit reconnection flow.
+- Sessions table stores hashed tokens only; expiry + revocation fields.
+- Credentials table has encrypted_payload/nonce/key_version only.
+- Encryption and authorization implementation follows in stages 03.2/04.
+- Auth lab and original LIVE D1 database are untouched.
+- Cloudflare Auth Worker has NOT been created or connected yet.
+- No users, credentials or sessions have been inserted.
+- Free quota already included with existing Workers Paid subscription
+  subject to normal D1 monthly usage limits.
