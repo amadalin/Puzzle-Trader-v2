@@ -57,9 +57,12 @@ export async function readCredentialsForVerification(db,env,user){
   if(row.exchange_id!==user.exchange_id||row.key_version!==KEY_VERSION)throw new Error('VAULT_EXCHANGE_OR_VERSION_MISMATCH');
   const key=await vaultKey(env);
   if(!key)throw new Error('CREDENTIAL_VAULT_NOT_CONFIGURED');
-  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:row.nonce,
+  const iv=new Uint8Array(row.nonce);
+  const sealed=new Uint8Array(row.encrypted_payload);
+  if(iv.byteLength!==12||sealed.byteLength<=16)throw new Error('VAULT_CIPHERTEXT_INVALID');
+  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv,
     additionalData:associatedData(user.user_id,user.exchange_id),tagLength:128},
-    key,row.encrypted_payload);
+    key,sealed);
   return JSON.parse(new TextDecoder().decode(plain));
 }
 export async function getCredentialStatus(db,user){
