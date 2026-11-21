@@ -587,3 +587,79 @@ PUNCT DE RELUARE
 - Etapa 05: FEED-1 automat din exchange_id profil, date publice
   fara folosirea API key.
 - Botul LIVE pe Cloudflare + Render probe a ramas neatins.
+
+
+=====================================================================
+ETAPA 04.2 - VERIFICARE API READ-ONLY KUCOIN + BINANCE
+Data: 2026-11-21
+STATUS: IMPLEMENTATA SI PUBLICATA INTERN; TEST REAL CU CONTURI PENDING
+=====================================================================
+
+SCOP SI REGULI
+- La signup se selecteaza exchange-ul o singura data.
+- Utilizatorul se autentifica, apoi salveaza cheile API criptat (04.1).
+- Buton nou: "Verifica API · READ-ONLY", doar in cont autentificat.
+- Backend citeste cheile DIN VAULT si semneaza cererea pentru exchange-ul
+  definit in profil. Nu accepta exchange ales arbitrar prin endpoint.
+- Verificare DOAR GET, fara ordine, retrageri, modificari sau transferuri.
+
+API-URI OFICIALE
+- KUCOIN_FUTURES: GET https://api-futures.kucoin.com/api/v1/positions
+  cu query currency=USDT; permisiunea General.
+  Autentificare: KC-API-KEY, KC-API-SIGN, KC-API-TIMESTAMP,
+  KC-API-PASSPHRASE, KC-API-KEY-VERSION v2 sau v3 (ales la conectare).
+  Semnatura HMAC SHA256 Base64 peste timestamp+GET+path+query;
+  Passphrase HMAC SHA256 Base64.
+- BINANCE_FUTURES: GET https://fapi.binance.com/fapi/v3/balance
+  cu timestamp, recvWindow 5000 si signature HMAC SHA256 hex.
+  X-MBX-APIKEY header, endpoint USER_DATA.
+- Adrese fixe/allowlist interne; redirecturile refuzate; timeout 10s.
+- Raspunsul este verificat strict (schema si cod de succes).
+- NU se trimit spre client date private din raspuns: sold, pozitii,
+  cont, semnatura, chei si payloaduri exchange.
+- Referinte:
+  https://www.kucoin.com/docs-new/authentication
+  https://www.kucoin.com/docs-new/rest/futures-trading/positions/get-position-list
+  https://developers.binance.com/docs/derivatives/usds-margined-futures/account/rest-api/Futures-Account-Balance-V3
+
+IMPLEMENTARE
+- src/exchange-readonly-verifier.mjs: modul nou, GET-uri semnate,
+  limitare dimensiune raspuns, categorii sigure de eroare.
+- src/exchange-vault.mjs: apiKeyVersion KuCoin 2/3 optional;
+  evidence snapshot = chei decriptate in server + nonce AES-GCM.
+  Confirmarea are conditie D1: user_id+exchange_id+nonce+key_version,
+  pentru a preveni marcarea unei chei schimbate in timpul verificarii.
+- src/auth-worker.mjs: POST /api/exchange/verify, necesita sesiune
+  + Origin egal + header X-Puzzle-V2 + JSON, limitare 6 verificari
+  per IP / 15 minute si 3 verificari per utilizator / 15 minute.
+- La succes, last_verified_at salvat in D1 (unixepoch secunde);
+  la eroare nu se marcheaza verificat. Inlocuirea cheilor sterge
+  verificarea anterioara.
+- Browserul afiseaza starea VERIFIED_READ_ONLY sau erori utile
+  de timp, IP, permisiuni, chei, conectivitate, rate-limit.
+- READ_ONLY nu confera permisiune de tranzactionare.
+
+TESTE SI DEPLOY
+[x] Render V2 build dep-dc0orprm8hqs73f6cr7g: 29/29 PASS,
+    0 FAIL, build reusit pe commit ec59c6ec1d726fe1e8b7c5bc62d6a3ba27b67b43.
+[x] 10 teste noi: HMAC KuCoin v2/v3 si Binance, strict GET,
+    raspuns invalid, erori API, network, 429 si raspuns supradimensionat.
+[x] Test de verificare nonce/IV: nu confirma chei inlocuite.
+[x] Test endpoint autentificare si CSRF.
+[x] Cloudflare Worker puzzle-trader-v2-auth v7:
+    f8e625da-bee5-47c9-9fed-c92406b5dbc0, 100% trafic.
+[x] Bindinguri: D1 V2, AUTH_RATE_PEPPER, V2_CREDENTIAL_ENCRYPTION_KEY.
+[x] D1 V2 fara utilizatori, sesiuni sau chei in momentul verificarii.
+[x] URL public Worker disabled; preview disabled.
+[ ] Verificare LIVE read-only cu chei reale, numai dupa Signup/Login E2E
+    si conectarea unui cont V2 cu cheile introduse de proprietar.
+[ ] Test complet POST /api/exchange/verify cu D1 real si sesiune reala.
+[ ] Nu pretindem validarea cheilor utilizatorului doar din 29 teste mock.
+
+PUNCT DE RELUARE
+- Finalizare 03.2: invitatie de minim 8 caractere, instalata securizat,
+  browser Signup -> Login -> API Connect -> Verify -> Logout,
+  test cu cont temporar fara ordine, apoi politica de acces.
+- Etapa 05: FEED-1 selectat automat din exchange_id al utilizatorului.
+  Fluxul de pret/ohlc public nu trebuie sa ceara cheile API private.
+- Botul LIVE actual, Cloudflare D1 LIVE si Render live probe sunt neatinse.
