@@ -97,4 +97,8 @@ test('Exchange credential routes are not accessible without authenticated sessio
  assert.equal(r.status,401);
  r=await auth.fetch(request('/api/exchange/connect','POST',{apiKey:'DUMMY_KEY_123456',apiSecret:'DUMMY_SECRET_123456'}),{DB:d});
  assert.equal(r.status,401);
+ r=await auth.fetch(request('/api/exchange/verify','POST',{}),{DB:d});
+ assert.equal(r.status,401);
+ r=await auth.fetch(request('/api/exchange/verify','POST',{},{'Origin':'https://attacker.invalid'}),{DB:d});
+ assert.equal(r.status,403);
 });
