@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
-import {storeExchangeCredential,readCredentialsForVerification,getCredentialStatus} from '../src/exchange-vault.mjs';
+import {storeExchangeCredential,readCredentialsForVerification,readCredentialEvidenceForVerification,markCredentialVerified,getCredentialStatus} from '../src/exchange-vault.mjs';
 
 function mockD1(){
  const records=new Map(),writes=[];
@@ -9,6 +9,14 @@ function mockD1(){
   writes,records,
   prepare(sql){return {bind(...args){return {
    async run(){
+    if(sql.startsWith('UPDATE exchange_credentials SET last_verified_at=')){
+      const [at,userId,exchange,nonce,keyVersion]=args;
+      const row=records.get(userId);
+      const same=!!row&&row.exchange_id===exchange&&row.key_version===keyVersion&&
+        JSON.stringify(row.nonce)===JSON.stringify(Array.from(nonce));
+      if(same)row.last_verified_at=at;
+      return {success:true,meta:{changes:same?1:0}};
+    }
     if(!sql.startsWith('INSERT INTO exchange_credentials('))throw Error('Unexpected write: '+sql);
     const [userId,exchangeId,cipher,nonce]=args;
     const prior=records.get(userId);
@@ -85,4 +93,21 @@ test('AES-GCM associated data rejects ciphertext replayed to a different account
  const copied=db.records.get(user.user_id);
  db.records.set('different-account',{...copied});
  await assert.rejects(()=>readCredentialsForVerification(db,key,{user_id:'different-account',exchange_id:'BINANCE_FUTURES'}));
+});
+
+test('Verification is committed only for the exact unchanged encrypted snapshot',async()=>{
+ const db=mockD1(),e=env(),user={user_id:'00000000-0000-4000-8000-cccccccccccc',exchange_id:'KUCOIN_FUTURES'};
+ await storeExchangeCredential(db,e,user,{...fixtures[0].credentials,apiKeyVersion:'2'});
+ const oldEvidence=await readCredentialEvidenceForVerification(db,e,user);
+ assert.equal(oldEvidence.credentials.apiKeyVersion,'2');
+ assert.equal(oldEvidence.nonce.length,12);
+ const verifiedAt=1795260000;
+ assert.equal(await markCredentialVerified(db,user,oldEvidence.nonce,verifiedAt),true);
+ assert.equal((await getCredentialStatus(db,user)).verified,true);
+ await storeExchangeCredential(db,e,user,{...fixtures[0].credentials,apiKeyVersion:'3'});
+ assert.equal((await getCredentialStatus(db,user)).verified,false);
+ assert.equal(await markCredentialVerified(db,user,oldEvidence.nonce,verifiedAt),false);
+ assert.equal((await getCredentialStatus(db,user)).verified,false);
+ const fresh=await readCredentialEvidenceForVerification(db,e,user);
+ assert.equal(await markCredentialVerified(db,user,fresh.nonce,verifiedAt+10),true);
 });
