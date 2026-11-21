@@ -15,8 +15,12 @@ function validatedInput(exchange,payload){
   const passphrase=payload.apiPassphrase;
   if(exchange==='KUCOIN_FUTURES'&&!keyField(passphrase,4,256))return null;
   if(exchange==='BINANCE_FUTURES'&&passphrase!=null&&passphrase!=='')return null;
+  const version=payload.apiKeyVersion;
+  if(exchange==='KUCOIN_FUTURES'&&version!=null&&!['2','3'].includes(String(version)))return null;
+  if(exchange==='BINANCE_FUTURES'&&version!=null&&version!=='')return null;
   return {apiKey:payload.apiKey,apiSecret:payload.apiSecret,
-    ...(exchange==='KUCOIN_FUTURES'?{apiPassphrase:passphrase}:{})};
+    ...(exchange==='KUCOIN_FUTURES'?{apiPassphrase:passphrase,
+      ...(version!=null?{apiKeyVersion:String(version)}:{})}:{})};
 }
 async function vaultKey(env){
   const supplied=env.V2_CREDENTIAL_ENCRYPTION_KEY;
@@ -51,7 +55,7 @@ export async function storeExchangeCredential(db,env,user,body){
 }
 
 // Internal-only future verification helper; never return decrypted secrets to an HTTP client.
-export async function readCredentialsForVerification(db,env,user){
+export async function readCredentialEvidenceForVerification(db,env,user){
   const row=await db.prepare('SELECT exchange_id,encrypted_payload,nonce,key_version FROM exchange_credentials WHERE user_id=?').bind(user.user_id).first();
   if(!row)return null;
   if(row.exchange_id!==user.exchange_id||row.key_version!==KEY_VERSION)throw new Error('VAULT_EXCHANGE_OR_VERSION_MISMATCH');
@@ -63,7 +67,23 @@ export async function readCredentialsForVerification(db,env,user){
   const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv,
     additionalData:associatedData(user.user_id,user.exchange_id),tagLength:128},
     key,sealed);
-  return JSON.parse(new TextDecoder().decode(plain));
+  return {credentials:JSON.parse(new TextDecoder().decode(plain)),nonce:iv};
+}
+// Retain legacy in-process test/helper API; never expose it as HTTP.
+export async function readCredentialsForVerification(db,env,user){
+  const evidence=await readCredentialEvidenceForVerification(db,env,user);
+  return evidence?.credentials||null;
+}
+// Compare the IV from the verified snapshot: a concurrent credential change cannot
+// inherit verification. The sole write is a verification timestamp, no account data.
+export async function markCredentialVerified(db,user,nonce,verifiedAt){
+  if(!(nonce instanceof Uint8Array)||nonce.byteLength!==12||
+     !Number.isSafeInteger(verifiedAt)||verifiedAt<1700000000)return false;
+  const r=await db.prepare(
+    'UPDATE exchange_credentials SET last_verified_at=?,updated_at=unixepoch() '+
+    'WHERE user_id=? AND exchange_id=? AND nonce=? AND key_version=?'
+  ).bind(verifiedAt,user.user_id,user.exchange_id,nonce,KEY_VERSION).run();
+  return r.meta?.changes===1;
 }
 export async function getCredentialStatus(db,user){
   const row=await db.prepare('SELECT exchange_id,last_verified_at FROM exchange_credentials WHERE user_id=?').bind(user.user_id).first();
